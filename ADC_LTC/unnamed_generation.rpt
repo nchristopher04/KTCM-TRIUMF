@@ -1,0 +1,30 @@
+Info: Starting: Create block symbol file (.bsf)
+Info: qsys-generate /home/nicholas/Downloads/DE0-Nano-SoC_v.1.1.0_SystemCD/Demonstrations/FPGA/de0_base/unnamed.qsys --block-symbol-file --output-directory=/home/nicholas/Downloads/DE0-Nano-SoC_v.1.1.0_SystemCD/Demonstrations/FPGA/de0_base/unnamed --family="Cyclone V" --part=5CSEMA4U23C6
+Progress: Loading de0_base/unnamed.qsys
+Progress: Reading input file
+Progress: Adding adc_mega_0 [altera_up_avalon_adc_mega 15.1]
+Progress: Parameterizing module adc_mega_0
+Progress: Building connections
+Progress: Parameterizing connections
+Progress: Validating
+Progress: Done reading input file
+Info: qsys-generate succeeded.
+Info: Finished: Create block symbol file (.bsf)
+Info: 
+Info: Starting: Create HDL design files for synthesis
+Info: qsys-generate /home/nicholas/Downloads/DE0-Nano-SoC_v.1.1.0_SystemCD/Demonstrations/FPGA/de0_base/unnamed.qsys --synthesis=VERILOG --output-directory=/home/nicholas/Downloads/DE0-Nano-SoC_v.1.1.0_SystemCD/Demonstrations/FPGA/de0_base/unnamed/synthesis --family="Cyclone V" --part=5CSEMA4U23C6
+Progress: Loading de0_base/unnamed.qsys
+Progress: Reading input file
+Progress: Adding adc_mega_0 [altera_up_avalon_adc_mega 15.1]
+Progress: Parameterizing module adc_mega_0
+Progress: Building connections
+Progress: Parameterizing connections
+Progress: Validating
+Progress: Done reading input file
+Info: unnamed: Generating unnamed "unnamed" for QUARTUS_SYNTH
+Info: adc_mega_0: Starting Generation of ADC Controller for DE-series Board
+Info: adc_mega_0: /home/nicholas/altera_lite/15.1/ip/altera/university_program/input_output/altera_up_avalon_adc/hdl/altera_up_avalon_adv_adc.v /tmp/alt6955_8366556158982955332.dir/0001_sopcgen/unnamed_adc_mega_0.v
+Info: adc_mega_0: "unnamed" instantiated altera_up_avalon_adc_mega "adc_mega_0"
+Info: unnamed: Done "unnamed" with 2 modules, 3 files
+Info: qsys-generate succeeded.
+Info: Finished: Create HDL design files for synthesis
