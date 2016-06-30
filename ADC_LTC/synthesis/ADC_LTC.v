@@ -17,6 +17,7 @@ module ADC_LTC (
 		output wire [11:0] CH5,       //            .CH5
 		output wire [11:0] CH6,       //            .CH6
 		output wire [11:0] CH7,       //            .CH7
+		output wire 		 done,	
 		input  wire        RESET      //       reset.reset
 	);
 
@@ -35,11 +36,13 @@ module ADC_LTC (
 		.CH4       (CH4),       //            .export
 		.CH5       (CH5),       //            .export
 		.CH6       (CH6),       //            .export
-		.CH7       (CH7),       //            .export
+		.CH7       (CH7),   
+		.done		  (done), //            .export
 		.ADC_SCLK  (ADC_SCLK),  // adc_signals.export
 		.ADC_CS_N  (ADC_CS_N),  //            .export
 		.ADC_SDAT  (ADC_SDAT),  //            .export
 		.ADC_SADDR (ADC_SADDR)  //            .export
+		
 	);
 
 endmodule

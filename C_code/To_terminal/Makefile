@@ -1,5 +1,5 @@
 #
-TARGET = KTM_2
+TARGET = KTM_Terminal_Print
 
 #
 CROSS_COMPILE = arm-linux-gnueabihf-

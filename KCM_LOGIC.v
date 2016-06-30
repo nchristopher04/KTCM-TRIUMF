@@ -17,7 +17,14 @@ input wire	          		ADC_SDO,
 	//////////// CLOCK //////////
 input wire	          		FPGA_CLK1_50,
 input wire	          		FPGA_CLK2_50,
-input wire	          		FPGA_CLK3_50
+input wire	          		FPGA_CLK3_50,
+output wire NewData,
+output wire [11:0] ADCValue,
+output wire [17:0] ADCTime,
+output wire [17:0] currentTrigOffset,
+output wire [11:0] highVoltage,
+output wire [17:0] meanOffset,
+output wire CLOCK_80MHZ
 
 );
 
@@ -154,9 +161,9 @@ end
 
 
 
-wire [11:0] CHAN0 ;
+wire [23:0] RESULT_CHAN [0:1] ;
+wire [23:0] I_PLUS_Q;
 wire [11:0] CHAN [0:7];
-wire CLOCK_80MHZ;
 wire KEY_NOT;
 wire RESET_80MHZ;
 assign KEY_NOT = !KEY[0];
@@ -175,20 +182,55 @@ assign KEY_NOT = !KEY[0];
         .ADC_SDAT  (ADC_SDO),  //            .SDAT
         .ADC_SADDR (ADC_SDI), //            .SADDR
         .CLOCK     (CLOCK_80MHZ),     //         clk.clk
-        .CH0       (CHAN0),       //    readings.CH0
+        .CH0       (CHAN[0]),       //    readings.CH0
         .CH1       (CHAN[1]),       //            .CH1
         .CH2       (CHAN[2]),       //            .CH2
         .CH3       (CHAN[3]),       //            .CH3
         .CH4       (CHAN[4]),       //            .CH4
         .CH5       (CHAN[5]),       //            .CH5
         .CH6       (CHAN[6]),       //            .CH6
-        .CH7       (CHAN[7]),       //            .CH7
+        .CH7       (CHAN[7]),		  //            .CH7
+		  .done      (done),
         .RESET     (KEY_NOT)      //       reset.reset
     );
-	 
 
+reg [11:0] NEWADCVALUE [0:1];
+wire [12:0] IQRemainder;
+wire done;
+reg [17:0] ADCTimeR;
+assign NewData = done;
+//assign ADCValue = IQValue;
 
+wire [11:0] IQvalue;
+assign ADCValue = CHAN[0];
+	
+SQUARER	SQUARER_inst1 (
+	.dataa ( CHAN[0]),
+	.result ( RESULT_CHAN[0] )
+	);
+	
+SQUARER SQUARER_inst2(
+	.dataa ( CHAN[1] ),
+	.result ( RESULT_CHAN[1] )
+	);
+	
+assign I_PLUS_Q = CHAN[0] + CHAN[1];
 
+SQRT	SQRT_inst (
+	.radical ( I_PLUS_Q ),
+	.q ( IQvalue ),
+	.remainder ( IQRemainder )
+	);
+
+always@(posedge CLOCK_80MHZ)
+begin
+//ADCTimeR <= TrigTime;//move after test
+	if(done)
+	ADCTimeR <= TrigTime;
+	
+end
+assign ADCTime = TrigTime;
+assign currentTrigOffset = triggerOffset[datanum];
 //=======================================================
 //  REG/WIRE declarations
 //=======================================================
@@ -238,6 +280,8 @@ reg [17:0] triggerOffset [0:31];
 reg [23:0] triggerSum;
 reg [17:0] meanTriggerOffset;
 
+assign meanOffset = meanTriggerOffset;
+
 //Triggering parameters
 reg [3:0] Tstate;
 reg [3:0] TnextState;
@@ -252,14 +296,21 @@ reg turnON;
 reg turnOFF;
 reg resetButton;
 reg [5:0]Tdatanum;
-reg [17:0]TrigTime [0:1];
-
+reg [17:0]TrigTime;
+reg [17:0] errorClockSize;
+reg errorReset;
+reg errorMessageComplete;
+reg error;
 //interger k;
 //wire runTrigger;
+reg [11:0]meanHighVoltage;
+reg [18:0]highVoltageSum;
+reg [6:0]countHV;
+assign highVoltage = meanHighVoltage;
 
 parameter COMPARE = 12'b011111111111, resetState=4'd0, beginState=4'd1,record1State=4'd2,record2State=4'd3;
 
-parameter KickerOnState=4'd2, KickerOffState=4'd3, errorState=4'd4;
+parameter KickerOnState=4'd2, KickerOffState=4'd3, errorLowState=4'd4, errorHighState=4'd5;
 //=======================================================
 //  Intitial Values
 //=======================================================
@@ -273,6 +324,7 @@ Pdatanum <= 6'd32;
 PdataReady <= 1'b0;
 TdataReady = 1'b0;
 PsumAveraging <= 23'd0;
+error <= 1'b0;
 Pstate <= resetState;
 state <= resetState;
 Tstate <= resetState;
@@ -288,6 +340,8 @@ resetButton <=1'b0;
 OnRatio <= 7'd1;
 OffRatio <= 7'd2;
 switchCount <=7'd1;
+
+highVoltageSum<=12'd0;
 //for (k = 6'd0; k < 6'd32 ; k = (k + 6'd1))
 //begin
 //pulseAveraging[k[4:0]] = 18'd0;
@@ -303,14 +357,15 @@ end
 always@(posedge CLOCK_80MHZ)
     begin
       case (SW)
-		0:LEDr =	KEY[1]? {CHAN0[11:4]}:8'hff;
-		1:LEDr = KEY[1]? {(CHAN0>COMPARE),(CHAN0<COMPARE),6'd0}:8'hff;
-		2:GPIOr = CHAN0>COMPARE;
+		0:LEDr =	KEY[1]? {CHAN[0][11:4]}:8'hff;
+		1:LEDr = KEY[1]? {IQvalue[11:4]}:8'hff;
+		5:LEDr = KEY[1]? {(CHAN[0]>COMPARE),(CHAN[0]<COMPARE),6'd0}:8'hff;
+		2:LEDr = KEY[1]? {CHAN[1][11:4]}:8'hff;
 		3:begin
-		GPIOr = CHAN0>COMPARE;
-		LEDr = KEY[1]? {(CHAN0>COMPARE),(CHAN0<COMPARE),6'd0}:8'hff;
+		GPIOr = CHAN[0]>COMPARE;
+		LEDr = KEY[1]? {(CHAN[0]>COMPARE),(CHAN[0]<COMPARE),6'd0}:8'hff;
 		end
-		4:LEDr =	KEY[1]? {CHAN0[7:0]}:8'hff;
+		4:LEDr =	KEY[1]? {CHAN[0][7:0]}:8'hff;
 		//5:
 		//6:
 		//7:
@@ -332,9 +387,18 @@ assign GPIO_0[35:4] = 34'hzzzzzzzz;
 
 always@(posedge CLOCK_80MHZ)
 begin
-	state <= nextState;
-	Pstate <= PnextState;
-	Tstate <= TnextState;
+	if(errorReset)
+	begin
+		state <= resetState;
+		Pstate <= resetState;
+		Tstate <= resetState;
+	end
+	else
+	begin
+		state <= nextState;
+		Pstate <= PnextState;
+		Tstate <= TnextState;
+	end
 end
 
 //***********************ADC SIGNAL ANALYSIS**********************
@@ -416,7 +480,7 @@ end
 always@(posedge CLOCK_80MHZ)
 begin
 	if(countValleyStart==1)
-		valleySize <= 14'd1;
+		valleySize <= 14'd0;
 	else if(countValley==1)
 		valleySize <= valleySize + 14'd1;
 end
@@ -437,7 +501,7 @@ end
 always@(posedge CLOCK_80MHZ)
 begin
 	if(countPulseStart==1)
-		pulseSize <= 18'd1;
+		pulseSize <= 18'd0;
 	else if(countPulse==1)
 		pulseSize <= pulseSize + 18'd1;
 end
@@ -647,7 +711,7 @@ end
 always@(posedge CLOCK_80MHZ)
 begin
 	if(PcountValleyStart==1)
-		PvalleySize <= 14'd1;
+		PvalleySize <= 14'd0;
 	else if(PcountValley==1)
 		PvalleySize <= PvalleySize + 14'd1;
 end
@@ -660,7 +724,7 @@ end
 always@(posedge CLOCK_80MHZ)
 begin
 	if(PcountPulseStart==1)
-		PpulseSize <= 18'd1;
+		PpulseSize <= 18'd0;
 	else if(PcountPulse==1)
 		PpulseSize <= PpulseSize + 18'd1;
 end
@@ -757,6 +821,7 @@ begin
 	//BeamOn <= GPIO_0[3];
 	case(Tstate)
 	resetState:begin
+		errorReset=0;
 		TriggerSignal=1'b0;
 		if(resetButton)
 			TnextState=resetState;
@@ -777,7 +842,9 @@ begin
 	KickerOnState:begin
 		TriggerSignal=1'b1;
 		//turnON=0;
-		if(turnOFF)
+		if(error)
+			TnextState=errorHighState;
+		else if(turnOFF)
 		begin
 			TnextState=KickerOffState;
 		end
@@ -788,15 +855,41 @@ begin
 	KickerOffState:begin
 		TriggerSignal=1'b0;
 	//	turnOFF=0;
-		if(turnON)//if(BeamOn && turnON)
+		if(error)
+			TnextState=errorLowState;
+		else if(turnON)//if(BeamOn && turnON)
 		begin
 				TnextState=KickerOnState;
 		end
 		else
 			TnextState=KickerOffState;
 	end
-	errorState:begin
+	errorLowState:begin
 	TriggerSignal=1'b0;
+	if(errorMessageComplete)
+	begin
+			TnextState = resetState;
+			errorReset=1;
+	end
+	else
+	begin
+			errorMessageComplete =1;//Still havn't finished this. Should send an error message to the HPS
+			TnextState = errorLowState;
+			errorReset=0;
+	end
+	
+	end
+	errorHighState:begin
+	TriggerSignal=1'b1;	
+	if(errorClockSize >= 18'd160000)//wait for 2ms. If no ramp down time can be determined in that time, ramp down.
+		TnextState = errorLowState;
+	else
+		TnextState = errorHighState;
+	//Should add some logic here to determine the next most likely no-beam period if an error occurs. 
+	//some conditions would include: 
+	// - the pulse cycle perviously did not make sense, so start a counter based off the clock cycle before that one and ramp accordingly.
+	// - the pulse previously did make sense, but now there is no signal. example is maybe the cyclotron turned off? so count based off of the last pulse falling edge.
+	// - the 1VM4 signal is messed up, but the pulser signal is fine. This could be an demoulator issue, or adc issue. So just base the ramp down off the pulse signal with a preset offset.	
 	end
 	default:begin
 			TriggerSignal=1'b0;
@@ -807,15 +900,28 @@ end
 
 always@(posedge CLOCK_80MHZ)
 begin
-	TrigTime[0] <= PvalleyAveraging [Pdatanum] + PpulseSize;
-	TrigTime[1] <= PvalleySize;
+	if(Tstate == errorHighState)
+		errorClockSize <= errorClockSize + 18'd1;
+	else 
+		errorClockSize <= 18'd0;
+end
+
+
+
+always@(posedge CLOCK_80MHZ)
+begin
+	if(PcountPulse)
+	TrigTime <= PvalleyAveraging [Pdatanum] + PpulseSize;
+	else if(PcountValley)
+	TrigTime <= PvalleySize;
+	
 	if(resetSwitchCount)
 	begin
 		switchCount<=7'd1;
 		turnOFF <= 1'b0;
 		turnON <= 1'b0;
 	end
-	else if((( TrigTime[0] == meanTriggerOffset) ||(TrigTime[1] == meanTriggerOffset)) && dataReady && PdataReady && ((Tdatanum == 6'd31 && Pdatanum == 6'd0)||((Tdatanum + 6'd1) == Pdatanum)))
+	else if(( TrigTime == meanTriggerOffset) && dataReady && PdataReady && ((Tdatanum == 6'd31 && Pdatanum == 6'd0)||((Tdatanum + 6'd1) == Pdatanum)))
 	begin
 		if((switchCount == OffRatio) && (Tstate == KickerOffState))
 		begin
@@ -846,6 +952,43 @@ begin
 	end
 end
 
+always@(posedge CLOCK_80MHZ)
+begin
+
+if(dataReady)
+begin
+	if (done && countHV<70 && IQvalue>COMPARE)
+	begin
+		if(countHV<=5)
+			countHV <= countHV + 7'b1;
+		else
+		begin
+			highVoltageSum <= highVoltageSum + IQvalue;
+			countHV <= countHV + 7'b1;
+		end
+	end
+	else if(IQvalue<COMPARE)
+	begin
+		countHV <= 7'b0;	
+		highVoltageSum <= 19'd0;
+	end
+	else if(countHV==70)
+	begin
+		meanHighVoltage <= highVoltageSum [17:6];
+	end
+
+	else
+	begin
+		if (done && countHV<=126 && meanHighVoltage == 12'd0)
+		begin
+				highVoltageSum <= highVoltageSum + IQvalue;
+				countHV <= countHV + 7'b1;
+		end
+		else if (done && countHV==127  && meanHighVoltage == 12'd0)
+				meanHighVoltage <= highVoltageSum [18:7];
+	end
+end
+end
 //always@(posedge CLOCK_80MHZ)//cal averaging
 //begin
 //	if(dataReady)

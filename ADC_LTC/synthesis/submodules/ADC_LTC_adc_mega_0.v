@@ -33,7 +33,8 @@ module ADC_LTC_adc_mega_0 (
 	CH4, 
 	CH5, 
 	CH6, 
-	CH7
+	CH7,
+	done
 );
 
 parameter tsclk = 8'd20;
@@ -48,7 +49,7 @@ input ADC_SDAT;
 output ADC_SCLK, ADC_CS_N, ADC_SADDR;
 
 reg go;
-wire done;
+output wire done;
 wire [11:0] outs [7:0];
 wire [8:0] T_SCLK;
 

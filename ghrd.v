@@ -238,8 +238,70 @@ module ghrd(
 
  wire [31:0] from_HPS;
  wire [31:0] to_HPS;
+ reg [31:0] WriteOut;
+ wire [17:0] ADCTime;
+ wire [17:0] currentTrigOffset;
+ wire [11:0] ADCValue;
+ wire [11:0]highVoltage;
+ wire [17:0] meanOffset;
+ wire NewData;
+ reg newADCValue1, newADCValue2;
+ reg HPSedge;
+ assign to_HPS = WriteOut;
+ wire CLOCK_80MHZ;
  
- assign to_HPS = 32'd123;
+// always@(negedge from_HPS[1])
+// begin
+// newADCValue2 = 0;
+// end
+ 
+ always@(posedge CLOCK_80MHZ)
+ begin
+ 
+	if(NewData)
+	 newADCValue2 = 1;
+	else if (from_HPS[1] == 0 && HPSedge)
+	begin
+	 newADCValue2 = 0;
+	 HPSedge =0;
+	end
+	else if (from_HPS[1])
+	 HPSedge =1;
+ 
+ 
+ if(NewData)
+ begin
+ WriteOut = {32'd0};
+ end
+ else if(from_HPS[0])
+ begin
+	if(from_HPS[1])
+	begin
+	if(newADCValue2)
+	begin
+		WriteOut = {ADCTime,1'b0,ADCValue,1'b1};
+	end
+	else
+		WriteOut = {32'd0};
+	end
+ end
+ else if(from_HPS[2])
+ begin
+ WriteOut = {currentTrigOffset,1'b1};
+ end
+ else if(from_HPS[3])
+ begin
+ WriteOut = {highVoltage,1'b1};
+ end
+ else if(from_HPS[4])
+ begin
+ WriteOut = {meanOffset,1'b1};
+ else
+ WriteOut = {32'd0};
+
+ 
+ 
+ end
 
 //Interface to send gpio trigger signal. Created by: Nicholas Christopher, UCN group, TRIUMF
  KCM_LOGIC KCM_LOGIC_inst (
@@ -260,7 +322,14 @@ module ghrd(
 	//////////// CLOCK //////////
  .FPGA_CLK1_50(FPGA_CLK1_50),
  .FPGA_CLK2_50(FPGA_CLK2_50),
- .FPGA_CLK3_50(FPGA_CLK3_50)
+ .FPGA_CLK3_50(FPGA_CLK3_50),
+ .NewData(NewData),
+ .ADCValue(ADCValue),
+ .ADCTime(ADCTime),
+ .currentTrigOffset(currentTrigOffset),
+ .highVoltage(highVoltage),
+ .meanOffset(meanOffset),
+ .CLOCK_80MHZ(CLOCK_80MHZ)
  
  );
  
