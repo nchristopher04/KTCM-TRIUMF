@@ -38,7 +38,7 @@ module ADC_LTC_adc_mega_0 (
 );
 
 parameter tsclk = 8'd20;
-parameter numch = 3'd0;
+parameter numch = 3'd1;
 parameter board = "DE1-SoC (rev. A-E)";
 parameter board_rev = "Autodetect";
 

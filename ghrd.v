@@ -127,19 +127,19 @@ module ghrd(
 //=======================================================
 //  REG/WIRE declarations
 //=======================================================
-  wire  hps_fpga_reset_n;
-  wire [1:0] fpga_debounced_buttons;
-  wire [6:0]  fpga_led_internal;
-  wire [2:0]  hps_reset_req;
-  wire        hps_cold_reset;
-  wire        hps_warm_reset;
-  wire        hps_debug_reset;
-  wire [27:0] stm_hw_events;
-  wire 		  fpga_clk_50;
+wire  hps_fpga_reset_n;
+wire [1:0] fpga_debounced_buttons;
+wire [6:0]  fpga_led_internal;
+wire [2:0]  hps_reset_req;
+wire        hps_cold_reset;
+wire        hps_warm_reset;
+wire        hps_debug_reset;
+wire [27:0] stm_hw_events;
+wire 		  fpga_clk_50;
 // connection of internal logics
   //assign LED[7:1] = fpga_led_internal;
-  assign fpga_clk_50=FPGA_CLK1_50;
-  assign stm_hw_events    = {{15{1'b0}}, SW, fpga_led_internal, fpga_debounced_buttons};
+assign fpga_clk_50=FPGA_CLK1_50;
+assign stm_hw_events    = {{15{1'b0}}, SW, fpga_led_internal, fpga_debounced_buttons};
 
 
 //=======================================================
@@ -147,7 +147,7 @@ module ghrd(
 //=======================================================
 
 
- soc_system u0 (
+soc_system u0 (
 		//Clock&Reset
 	  .clk_clk                               (FPGA_CLK1_50 ),                               //                            clk.clk
 	  .reset_reset_n                         (hps_fpga_reset_n ),                         //                          reset.reset_n
@@ -234,104 +234,144 @@ module ghrd(
 	  
      .hps_data_external_connection_in_port    (to_HPS),   // hps_data_external_connection.in_port
 	  .hps_data_external_connection_out_port	(from_HPS) 
- );
+);
 
- wire [31:0] from_HPS;
- wire [31:0] to_HPS;
- reg [31:0] WriteOut;
- wire [17:0] ADCTime;
- wire [17:0] currentTrigOffset;
- wire [11:0] ADCValue;
- wire [11:0]highVoltage;
- wire [17:0] meanOffset;
- wire NewData;
- reg newADCValue1, newADCValue2;
- reg HPSedge;
- assign to_HPS = WriteOut;
- wire CLOCK_80MHZ;
+wire [31:0] from_HPS;
+wire [31:0] to_HPS;
+reg [31:0] WriteOut;
+wire [17:0] ADCTime;
+wire [17:0] currentTrigOffset;
+wire [11:0] ADCValue;
+wire [11:0]highVoltage;
+wire [11:0]lowVoltage;
+wire [17:0] meanOffset;
+reg [7:0]waitcount;
+wire errorOut;
+wire [5:0] errorInfo;
+wire errorMessageComplete;
+reg errorMessageCompleteR;
+assign errorMessageComplete = errorMessageCompleteR;
+wire NewData;
+wire InValley;
+reg newADCValue1, newADCValue2;
+reg HPSedge;
+assign to_HPS = WriteOut;
+wire CLOCK_80MHZ;
  
-// always@(negedge from_HPS[1])
-// begin
-// newADCValue2 = 0;
-// end
- 
- always@(posedge CLOCK_80MHZ)
- begin
- 
-	if(NewData)
-	 newADCValue2 = 1;
+always@(posedge FPGA_CLK1_50)
+begin
+	if(NewData && InValley)
+		newADCValue2 = 1;
 	else if (from_HPS[1] == 0 && HPSedge)
 	begin
-	 newADCValue2 = 0;
-	 HPSedge =0;
+		newADCValue2 = 0;
+		HPSedge =0;
 	end
-	else if (from_HPS[1])
-	 HPSedge =1;
+	else if (InValley==0)
+		newADCValue2 = 0;
  
- 
- if(NewData)
- begin
- WriteOut = {32'd0};
- end
- else if(from_HPS[0])
- begin
-	if(from_HPS[1])
+ 	if (from_HPS[1])
+		HPSedge =1;
+	if(NewData)
 	begin
-	if(newADCValue2)
+		WriteOut = {32'd0};
+		waitcount <=4'd0;
+	end
+	else if(from_HPS[6])
 	begin
-		WriteOut = {ADCTime,1'b0,ADCValue,1'b1};
+		WriteOut = {errorInfo,1'b1};
+	end
+	else if(from_HPS[7])
+	begin
+		errorMessageCompleteR=1;
+		if(errorOut)
+			WriteOut = {32'd0};
+		else
+			WriteOut = {30'd0,2'b10};
+	end
+	else if(from_HPS[0])
+	begin
+		if(from_HPS[1])
+		begin
+		waitcount <= waitcount + 8'd1;
+			if(errorOut)
+			begin
+				WriteOut = {32'd3};
+			end
+			else if(newADCValue2 && waitcount>8'd5)
+			begin
+				errorMessageCompleteR=0;
+				WriteOut = {ADCTime,ADCValue,2'b01};
+			end
+			else if(InValley==0)
+			begin
+				WriteOut = {30'd0,2'b10};
+				errorMessageCompleteR=0;
+			end
+			else
+			begin
+				errorMessageCompleteR=0;
+				WriteOut = {32'd0};
+			end
+		end
+		else
+		begin
+			WriteOut = {32'd0};
+		end
+	end
+	else if(from_HPS[2])
+	begin
+		WriteOut = {currentTrigOffset,1'b1};
+	end
+	else if(from_HPS[3])
+	begin
+		WriteOut = {highVoltage,1'b1};
+	end
+	else if(from_HPS[4])
+	begin
+		WriteOut = {meanOffset,1'b1};
+	end
+	else if(from_HPS[5])
+	begin
+		WriteOut = {lowVoltage,1'b1};
 	end
 	else
-		WriteOut = {32'd0};
-	end
- end
- else if(from_HPS[2])
- begin
- WriteOut = {currentTrigOffset,1'b1};
- end
- else if(from_HPS[3])
- begin
- WriteOut = {highVoltage,1'b1};
- end
- else if(from_HPS[4])
- begin
- WriteOut = {meanOffset,1'b1};
- else
- WriteOut = {32'd0};
-
- 
- 
- end
+		WriteOut = {32'd0}; 
+end
 
 //Interface to send gpio trigger signal. Created by: Nicholas Christopher, UCN group, TRIUMF
- KCM_LOGIC KCM_LOGIC_inst (
- .KEY (KEY),
+KCM_LOGIC KCM_LOGIC_inst (
+	.KEY (KEY),
+	.LED (LED),
+	//////////// SW //////////
+	.SW (SW),
+	//////////// GPIO_0, GPIO connect to GPIO Default //////////
+	.GPIO_0 (GPIO_0),
+	//////////// GPIO_1, GPIO connect to GPIO Default //////////
+	.GPIO_1 (GPIO_1),
 
- .LED (LED),
-//////////// SW //////////
- .SW (SW),
-//////////// GPIO_0, GPIO connect to GPIO Default //////////
- .GPIO_0 (GPIO_0),
-//////////// GPIO_1, GPIO connect to GPIO Default //////////
- .GPIO_1 (GPIO_1),
-
- .ADC_CONVST (ADC_CONVST),
- .ADC_SCK(ADC_SCK),
- .ADC_SDI(ADC_SDI),
- .ADC_SDO(ADC_SDO),
+	.ADC_CONVST (ADC_CONVST),
+	.ADC_SCK(ADC_SCK),
+	.ADC_SDI(ADC_SDI),
+	.ADC_SDO(ADC_SDO),
 	//////////// CLOCK //////////
- .FPGA_CLK1_50(FPGA_CLK1_50),
- .FPGA_CLK2_50(FPGA_CLK2_50),
- .FPGA_CLK3_50(FPGA_CLK3_50),
- .NewData(NewData),
- .ADCValue(ADCValue),
- .ADCTime(ADCTime),
- .currentTrigOffset(currentTrigOffset),
- .highVoltage(highVoltage),
- .meanOffset(meanOffset),
- .CLOCK_80MHZ(CLOCK_80MHZ)
+	.FPGA_CLK1_50(FPGA_CLK1_50),
+	.FPGA_CLK2_50(FPGA_CLK2_50),
+	.FPGA_CLK3_50(FPGA_CLK3_50),
+	.InValley(InValley),
+	.NewData(NewData),
+	.ADCValue(ADCValue),
+	.ADCTime(ADCTime),
+	.currentTrigOffset(currentTrigOffset),
+	.highVoltage(highVoltage),
+	.lowVoltage(lowVoltage),
+	.meanOffset(meanOffset),
+	.errorOut(errorOut),
+   .errorInfo(errorInfo),
+	.errorMessageComplete(errorMessageComplete),
+	.CLOCK_80MHZ(CLOCK_80MHZ)
  
- );
+);
  
 // Debounce logic to clean out glitches within 1ms
 debounce debounce_inst (

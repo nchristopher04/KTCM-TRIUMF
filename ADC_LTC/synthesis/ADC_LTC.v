@@ -25,7 +25,7 @@ module ADC_LTC (
 		.board     ("DE0-Nano-SoC"),
 		.board_rev ("Autodetect"),
 		.tsclk     (4),
-		.numch     (0)
+		.numch     (1)
 	) adc_mega_0 (
 		.CLOCK     (CLOCK),     //         clk.clk
 		.RESET     (RESET),     //       reset.reset

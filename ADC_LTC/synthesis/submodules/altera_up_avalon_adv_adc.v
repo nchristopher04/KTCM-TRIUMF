@@ -29,7 +29,7 @@ output reg sclk, din, cs_n;
 output reg [11:0] reading0, reading1, reading2, reading3, reading4, reading5, reading6, reading7;
 
 parameter T_SCLK = 8'd20;
-parameter NUM_CH = 4'd0;
+parameter NUM_CH = 4'd1;
 parameter BOARD = "DE1-SoC";
 parameter BOARD_REV = "Autodetect";
 
@@ -283,14 +283,14 @@ generate
             always @(posedge clock)
                 if (currState == resetState)
                     if (isLTC)
-                        din_shift_reg <= {1'b1,NUM_CH[0],NUM_CH[2],NUM_CH[1],2'b10,6'd0};// S/D, O/S, S1, S0, UNI, SLP
+                        din_shift_reg <= {1'b0,NUM_CH[2],NUM_CH[1],NUM_CH[0],2'b00,6'd0};// S/D, O/S, S1, S0, UNI, SLP
                     else
                         din_shift_reg <= {3'b110,NUM_CH[2:0],6'b111001};     //13'hDF9; // Ctrl reg initialize to 0xdf90. MSB is a dummy value that doesnt actually get used
                 else if ((currState == waitState && go) || currState == pauseStateNoAddrIncr ||
                             (currState == pauseState && address != NUM_CH[2:0]) ||
                             (isLTC && currState == transState && counter != 0 &&  sclk_counter == 5'd0)) // For LTC, grab immediately after transition to transState
                     if (isLTC)
-                        din_shift_reg <= {1'b1,address[0],address[2],address[1],2'b10,6'd0};// S/D, O/S, S1, S0, UNI, SLP
+                        din_shift_reg <= {1'b0,address[2],address[1],address[0],2'b00,6'd0};// S/D, O/S, S1, S0, UNI, SLP
                     else
                         din_shift_reg <= {3'b010,NUM_CH[2:0],6'b111001};     //13'h5DF9  WRITE=0,SEQ=1,DONTCARE,ADDR2,ADDR1,ADDR0,DONTCARE*6
                 else if (counter == 8'd0 && isLTC == sclk)
