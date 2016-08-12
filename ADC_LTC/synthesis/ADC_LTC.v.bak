@@ -17,7 +17,6 @@ module ADC_LTC (
 		output wire [11:0] CH5,       //            .CH5
 		output wire [11:0] CH6,       //            .CH6
 		output wire [11:0] CH7,       //            .CH7
-		output wire 		 done,	
 		input  wire        RESET      //       reset.reset
 	);
 
@@ -25,7 +24,7 @@ module ADC_LTC (
 		.board     ("DE0-Nano-SoC"),
 		.board_rev ("Autodetect"),
 		.tsclk     (4),
-		.numch     (1)
+		.numch     (0)
 	) adc_mega_0 (
 		.CLOCK     (CLOCK),     //         clk.clk
 		.RESET     (RESET),     //       reset.reset
@@ -36,8 +35,7 @@ module ADC_LTC (
 		.CH4       (CH4),       //            .export
 		.CH5       (CH5),       //            .export
 		.CH6       (CH6),       //            .export
-		.CH7       (CH7),   
-		.done		  (done), //            .export
+		.CH7       (CH7),       //            .export
 		.ADC_SCLK  (ADC_SCLK),  // adc_signals.export
 		.ADC_CS_N  (ADC_CS_N),  //            .export
 		.ADC_SDAT  (ADC_SDAT),  //            .export

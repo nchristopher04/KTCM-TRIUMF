@@ -250,6 +250,7 @@ wire errorOut;
 wire [5:0] errorInfo;
 wire errorMessageComplete;
 reg errorMessageCompleteR;
+wire [23:0] errorData;
 assign errorMessageComplete = errorMessageCompleteR;
 wire NewData;
 wire InValley;
@@ -270,8 +271,10 @@ begin
 	else if (InValley==0)
 		newADCValue2 = 0;
  
+ 
  	if (from_HPS[1])
 		HPSedge =1;
+		
 	if(NewData)
 	begin
 		WriteOut = {32'd0};
@@ -279,7 +282,7 @@ begin
 	end
 	else if(from_HPS[6])
 	begin
-		WriteOut = {errorInfo,1'b1};
+		WriteOut = {errorData,errorInfo,1'b1};
 	end
 	else if(from_HPS[7])
 	begin
@@ -369,8 +372,8 @@ KCM_LOGIC KCM_LOGIC_inst (
 	.errorOut(errorOut),
    .errorInfo(errorInfo),
 	.errorMessageComplete(errorMessageComplete),
+	.errorData(errorData),
 	.CLOCK_80MHZ(CLOCK_80MHZ)
- 
 );
  
 // Debounce logic to clean out glitches within 1ms

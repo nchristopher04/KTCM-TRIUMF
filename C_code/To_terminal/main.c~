@@ -30,20 +30,23 @@ printf ( "Current local time and date: %s\n", asctime (timeinfo) );
 
 	void *virtual_base;
 	int fd;
-	unsigned int DataIn [100];
+	unsigned int DataIn [600];
 	unsigned int triggerOffset;
 	unsigned int meanOffset;
 	unsigned int highVoltage;
 	unsigned int lowVoltage;
 	unsigned int DataOut;
 	unsigned int errorType;
+	int errorData;
 	unsigned int errorDone;
 	long int i = 0;
 	int loop_count;
 	int loop_count2;
-	unsigned int voltage;
-	unsigned int clocks;
+	int voltage;
+	int clocks;
+	int state;
 	float time;
+	float errtime;
 	void *h2p_lw_led_addr;
 //	void *h2p_lw_IO;
 
@@ -88,7 +91,7 @@ loop_count = 0;
 		DataOut = 1;
 		*(uint32_t *)h2p_lw_led_addr = DataOut;
 		loop_count++;
-	} while( DataIn[loop_count-1] != 2 && DataIn[loop_count-1]!=3 && loop_count<99);
+	} while( DataIn[loop_count-1] != 2 && DataIn[loop_count-1]!=3 && loop_count<500);
 
 	if(DataIn[loop_count-1]==3)
 	{	
@@ -99,10 +102,38 @@ loop_count = 0;
 		{
 			DataIn[loop_count]= *(uint32_t *)h2p_lw_led_addr; 
 		}
-		errorType = (DataIn[loop_count]-1)/2;
+		errorData = (DataIn[loop_count]-1)/128;
+		errorType = (((DataIn[loop_count]-1)*1.0/128.0)-errorData)*64.0;
+		errtime = 0.0125*errorData+0.00005;
 		printf("!!!!!!!!!!!!!!!!!!!!\n\n\nERROR NUMBER %u\n",errorType);
 		timeinfo = localtime ( &rawtime );
 		printf ( "Current local time and date: %s\n", asctime (timeinfo) );
+
+
+		loop_count2=0;
+
+		printf("\nTIME_SINCE_LAST_PULSER_FALLING_EDGE(us) VOLTAGE(mV)\n");
+		
+		while( loop_count2<(loop_count-1) ){
+			clocks = DataIn[loop_count2]/16384;
+			time = 0.0125*clocks+0.00005;
+			voltage = ((1.0*DataIn[loop_count2])/16384.0-clocks)*4096.0;
+			//printf("%u,%3.4f,%u\n",DataIn[loop_count2],time,voltage);
+			printf("%3.4f %i\n",time,voltage);
+			loop_count2++;
+
+		}
+
+		DataOut = 8;
+		*(uint32_t *)h2p_lw_led_addr = DataOut;
+		highVoltage = *(uint32_t *)h2p_lw_led_addr; 
+		while(highVoltage%2 == 0)
+
+		{
+			highVoltage = *(uint32_t *)h2p_lw_led_addr; 
+		}
+		printf("\nHV: %u \n",highVoltage/2);
+
 		switch(errorType)
 		{
 			case 1:
@@ -112,8 +143,8 @@ loop_count = 0;
 	    			printf("ratio of beam on vs off is too large\n");
 	    		break; 
 			case 3:
-	    			printf("Pulser valley is smaller than 48.75us\n");
-	    		break; 
+	    			printf("Pulser valley is smaller than 45us\n");
+	    			printf("size: %3.4f\n",errtime);
 			case 4:
 	    			printf("Pulser mean period is larger than 1.4ms\n");
 	    		break; 
@@ -121,13 +152,14 @@ loop_count = 0;
 	    			printf("Pulser last period was larger than 1.4ms\n");
 	    		break; 
 			case 6:
-	    			printf("Pulser mean period is smaller than 0.8ms\n");
+	    			printf("Pulser mean period is smaller than 0.84ms. a period smaller than this will trip the kicker PS (400Hz)\n");
 	    		break; 
 			case 7:
-	    			printf("Pulser last period was smaller than 0.8ms\n");
+	    			printf("Pulser last period was smaller than 0.84ms. a period smaller than this will trip the kicker PS (400Hz)\n");
 	    		break; 
 			case 8:
-	    			printf("1VM4 valley is smaller than 37.5us\n");
+	    			printf("1VM4 valley is smaller than 25us.\n");
+				printf("The pulser valley spacing was: %3.4f\n",errtime);
 	    		break; 
 			case 9:
 	    			printf("1VM4 last period was smaller than 0.8ms\n");
@@ -137,9 +169,11 @@ loop_count = 0;
 	    		break; 
 			case 11:
 	    			printf("1VM4 valley is larger than 150us\n");
+				printf("HV at that time: %u \n",errorData);
 	    		break; 
 			case 12:
 	    			printf("1VM4 signal is high for longer than 1.25ms\n");
+				printf("The time was: %3.4f\n",errtime);
 	    		break; 
 			case 13:
 	    			printf("Pulser valley is larger than 150us\n");
@@ -149,7 +183,13 @@ loop_count = 0;
 	    		break; 	
 			case 15:
 	    			printf("1VM4 and pulser signal are not in sync. Common reasons would be a connectivity problem, or a logic issue.\n");
-	    		break; 			
+	    		break; 	
+			case 16:
+	    			printf("error Flag. due to either PLL not being locked, or pressing the reset button (KEY[0])\n");
+	    		break; 		
+			case 17:
+	    			printf("1VM4 signal is high 15us after anticipated beggining of 1VM4 valley period\n");
+	    		break; 	
 	 		default:
 	 			printf("Could not Identify error type. For more info, go to https://github.com/nchristopher04/KTCM-TRIUMF and search for 'conditions that cause an error' In KCM_LOGIC.v\n");
 		}
@@ -162,7 +202,8 @@ loop_count = 0;
 		}
 	}
 	else
-	{
+	{/*
+		printf("NUMBER TRIGGER_OFFSET(us) TIME_KTM_WOULD_HAVE_TRIGGERED(us) BEAM_ON_MEAN_VOLTAGE(mv) RESIDUAL_BEAM_MEAN_VOLTAGE(mv)\n");
 		DataOut = 4;
 		*(uint32_t *)h2p_lw_led_addr = DataOut;
 		triggerOffset = *(uint32_t *)h2p_lw_led_addr; 
@@ -205,15 +246,17 @@ loop_count = 0;
 
 		loop_count2=0;
 
+		printf("\nTIME_SINCE_LAST_PULSER_FALLING_EDGE(us) VOLTAGE(mV)\n");
+		
 		while( loop_count2<(loop_count-1) ){
 			clocks = DataIn[loop_count2]/16384;
 			time = 0.0125*clocks+0.00005;
 			voltage = ((1.0*DataIn[loop_count2])/16384.0-clocks)*4096.0;
 			//printf("%u,%3.4f,%u\n",DataIn[loop_count2],time,voltage);
-			printf("%3.4f %u ",time,voltage);
+			printf("%3.4f %i\n",time,voltage);
 			loop_count2++;
 		}
-	}
+	*/}
 }
 
 	// clean up our memory mapping and exit
