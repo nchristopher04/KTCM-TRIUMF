@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simPackage>
+ <file path="mhz23_2_sim/mhz23_2.vo" type="VERILOG" />
+ <topLevel name="mhz23_2" />
+ <deviceFamily name="cyclonev" />
+</simPackage>

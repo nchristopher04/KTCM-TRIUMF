@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simPackage>
+ <file path="RFx8_2_sim/RFx8_2.vo" type="VERILOG" />
+ <topLevel name="RFx8_2" />
+ <deviceFamily name="cyclonev" />
+</simPackage>
